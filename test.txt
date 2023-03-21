@@ -1,0 +1,34 @@
+1.tạo 1 project với git
+- clone: git clone link
+2.tạo git repository: nơi chứa code
+3.clone prohect này: git clone (link r res)
+4.viết code
+	git status: kiểm tra trạng thái của các file
+	git add .: thêm file
+	git commit -m "nội dung"
+	git push origin main
+- tạo project local và đẩy lên github
+1.tạo git repository: nơi chứa code
+2.git init
+3.Code
+	git status: kiểm tra trạng thái của các file
+	git add .: thêm file
+	git commit -m "nội dung"
+	git remote add origin (link res)
+	git push origin master
+
+* sự khác nhau giữa ssh và https
+ - giống: xác thực bạn là ai
+-ssh an toàn hơn do sử dụng RSA tạo khóa bí mật và khóa công khai
+1. code
+	ssh-keygen -t ed25519 -C "phamha03122003@gmail.com"
+=> nơi lưu key: /c/Users/admin/.ssh/initid_ed25519
+1. .git: lưu trữ lịch sử code
+2. git add . : add tất cả các file trong folder, sẵn sàng để commit
+3. git commit: chú thích nội dung công việc
+4. git push: đẩy file commit lên github
+5. git init: kiểm soát sự thay đổi mã nguồn
+6. git clone: clone project
+7. git status: hiện trạng thái các file
+8. git pull
+	- nhánh code: mỗi khi phát triển tính năng thì tạo tính năng riêng phát triển độc lập với code chính:gremo 
