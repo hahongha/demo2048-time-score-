@@ -1,5 +1,6 @@
 package GAME2048;
 
+import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
@@ -12,17 +13,20 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.InputStreamReader;
 import java.util.Random;
-//chua sua duoc phan thoi gian
+
 public class Gameboard {
 	public static final int ROWS = 4;
 	public static final int COLS = 4;
-
-	private final int startingTiles = 2;// so o xuat hien
+	
+	//add
+	private int i=0;
+	
 	private Tile[][] board;
 	private boolean dead;
 	private boolean won;
 	private BufferedImage gameBoard;
 	private BufferedImage finalBoard;
+	private BufferedImage endBoard;
 	private int x;
 	private int y;
 
@@ -30,24 +34,24 @@ public class Gameboard {
 	private int highScore = 0;
 	private Font fontScore;
 	private Font fontTime;
-	
+
 	private long elapsedMS;
 	private long fastestMS;
 	private long startTime;
-	private String formatedTime="00:00:000";
-	
-	
+	private String formatedTime = "00:00:000";
+	protected playMusic play;
+	private boolean test = true;
+
 	// saving
 	private String saveDataPath;
 	private String fileName = "SaveData";// khong ma hoa
 
-	private boolean hasStarted;
+	private boolean hasStarted= true;
 
-	private static int SPACING = 10;
+	public static int SPACING = Tile.WIDTH/10; //khoảng cách giữa các ô
 	public static int BOARD_WIDTH = (COLS + 1) * SPACING + COLS * Tile.WIDTH;
-	public static int BOARD_HEIGHT = (ROWS + 1) * SPACING + ROWS * Tile.HEIGHT;
-	
-	
+	public static int BOARD_HEIGHT =(ROWS + 1) * SPACING + ROWS * Tile.HEIGHT;
+
 	public Gameboard(int x, int y) {
 		try {
 			saveDataPath = Gameboard.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath();
@@ -55,32 +59,37 @@ public class Gameboard {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		fontTime = Game.main.deriveFont(15f);
+		fontTime =Game.main.deriveFont(15f);
 		fontScore = Game.main.deriveFont(36f);
 		this.x = x;
 		this.y = y;
 		board = new Tile[ROWS][COLS];
 		gameBoard = new BufferedImage(BOARD_WIDTH, BOARD_HEIGHT, BufferedImage.TYPE_INT_RGB);
 		finalBoard = new BufferedImage(BOARD_WIDTH, BOARD_HEIGHT, BufferedImage.TYPE_INT_RGB);
-
+		endBoard = new BufferedImage(BOARD_WIDTH, BOARD_HEIGHT, BufferedImage.TYPE_INT_RGB);
 		startTime = System.nanoTime();
-		
+
 		loadHighScore();
 
 		creatBoardImage();
-		start();
+
+		// add
+		play = new playMusic("D:\\ha\\ki2nam2\\JAVA\\BTL2\\lib\\piano.wav");
+
+		spawnRandom();
+		spawnRandom();
 	}
 
 	private void creatSaveData() {
 		try {
 			File file = new File(saveDataPath, fileName);
-			
+
 			FileWriter output = new FileWriter(file);
 			BufferedWriter writer = new BufferedWriter(output);
 			writer.write("" + 0);
 			// create fastest time
 			writer.newLine();
-			writer.write(""+Integer.MAX_VALUE);
+			writer.write("" + 0);
 			writer.close();
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -93,16 +102,19 @@ public class Gameboard {
 			if (!f.isFile()) {
 				creatSaveData();
 			}
-			
+
 			BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(f)));
-			highScore = Integer.parseInt(reader.readLine());
-			// read fastest time
-			fastestMS = Long.parseLong(reader.readLine());
+			try {
+				highScore = Integer.parseInt(reader.readLine());
+				// read fastest time
+				fastestMS = Long.parseLong(reader.readLine());
+			} catch (NumberFormatException e) {
+				System.out.println("loi diem");
+			}
 			reader.close();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-
 	}
 
 	private void setHighScore() {
@@ -111,22 +123,21 @@ public class Gameboard {
 			File f = new File(saveDataPath, fileName);
 			output = new FileWriter(f);
 			BufferedWriter writer = new BufferedWriter(output);
-			writer.write(""+highScore);
+			writer.write("" + highScore);
 			writer.newLine();
-			if(elapsedMS<= fastestMS&& won) {
-//				fastestMS= elapsedMS;
-				writer.write(""+elapsedMS);
-			}else {
-				writer.write(""+fastestMS);
+			if (elapsedMS < fastestMS && won || fastestMS == 0) {
+				writer.write("" + elapsedMS);
+			} else {
+				writer.write("" + fastestMS);
 			}
 			writer.close();
-			
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 
-//tao bang
+//vẽ nền ban đầu của bảng
 	private void creatBoardImage() {
 		Graphics2D g = (Graphics2D) gameBoard.getGraphics();
 		g.setColor(Color.DARK_GRAY);
@@ -141,16 +152,9 @@ public class Gameboard {
 			}
 
 		}
-
 	}
-
-	private void start() {
-		for (int i = 0; i < startingTiles; i++) {
-			spawnRandom();
-		}
-	}
-
-	private void spawnRandom() {// xuat hien o bat ki
+	//chọn lựa ngẫu nhiên vị trí và giá trị và hiển thị ô
+	private void spawnRandom() {
 		Random random = new Random();
 		boolean notValid = true;
 
@@ -160,8 +164,8 @@ public class Gameboard {
 			int row = location / ROWS;
 			int col = location % COLS;
 			Tile current = board[row][col];
-			if (current == null) {// vi tri hien tai co trong khong
-				int value = random.nextInt(10) < 8 ? 32 : 128;
+			if (current == null) {// kiểm tra vị trí hiện tại có ô nào không
+				int value = random.nextInt(10) < 8 ? 128: 64;
 				Tile tile = new Tile(value, getTileX(col), getTileY(row));
 				board[row][col] = tile;
 				notValid = false;
@@ -181,135 +185,146 @@ public class Gameboard {
 	// bieu dien o
 	public void render(Graphics2D g) {
 		Graphics2D g2d = (Graphics2D) finalBoard.getGraphics();
-		g2d.drawImage(gameBoard, 0, 0, null);// check
-
-		// draw tiles
+		Graphics2D g2 = (Graphics2D) endBoard.getGraphics();
+		g2d.drawImage(gameBoard, 0, 0, null);
+		// vẽ các ô trên bảng
 		for (int row = 0; row < ROWS; row++) {
 			for (int col = 0; col < COLS; col++) {
 				Tile current = board[row][col];
-				if (current == null)
-					continue;
+				if (current != null)//nếu ô đó tồn tại giá trị thì hiển thị bộ đệm hình ảnh
 				current.render(g2d);
 			}
 		}
 		g.drawImage(finalBoard, x, y, null);
 		g2d.dispose();
-		
+
 		g.setColor(Color.LIGHT_GRAY);
-		g.drawString(""+score, 30, 40);
+		g.drawString("" + score, 30, 40);
 		g.setColor(Color.RED);
-		g.drawString("Best:"+highScore, Game.WIDTH-DrawUtils.getMessageWidth("Best:"+highScore, fontScore, g)-20, 40);
-		
-		
+		g.drawString("Best:" + highScore,
+				Game.WIDTH - DrawUtils.getMessageWidth("Best:" + highScore, fontScore, g) - 20, 40);
+
 		g.setColor(Color.BLACK);
-		g.drawString("Time:"+formatedTime, 30, 90);
+		g.drawString("Time:" + formatedTime, 30, 90);
 		g.setColor(Color.RED);
-		g.drawString("Fastest:" +formatTime(fastestMS), Game.WIDTH-DrawUtils.getMessageWidth("Fastest:" +formatTime(fastestMS), fontScore,g)-20, 160);
+		g.drawString("Fastest:" + formatTime(fastestMS),
+				Game.WIDTH - DrawUtils.getMessageWidth("Fastest:" + formatTime(fastestMS), fontScore, g) - 20, 160);
+
+		g.setColor(Color.black);
+		g.drawString("volume:" + (play.fc.getValue() + 94), 30, 200);
+
+		if (won || dead) {
+			renderEnd(g, Game.WIDTH, Game.HEIGHT);
+		}
+
 	}
 
 	public void update() {
-		
-		if(!won && !dead) {
-			if(hasStarted) {
-				elapsedMS = (System.nanoTime()-startTime)/1000000;
-				formatedTime = formatTime(elapsedMS);
-			}else {
-				startTime = System.nanoTime();
-			}
+		if (score > highScore) {
+			highScore = score;
 		}
-		
-		checkKeys();
-		
-		if(score>=highScore) {
-			highScore= score; 
-		}
-		
-//			if(elapsedMS<= fastestMS&&won) {
-//				fastestMS=elapsedMS;
-//			}
 
 		// kiem tra xem ban thang tro choi chua
 		for (int row = 0; row < ROWS; row++) {
 			for (int col = 0; col < COLS; col++) {
 				Tile current = board[row][col];
-				if (current == null)
-					continue;
+				if (current == null) continue;
+					//nếu giá trị tồn tại thì update animation
 				current.update();
 				// reset position
 				resetPosition(current, row, col);
+				//kiểm tra giá trị =2048
 				if (current.getValue() == 2048) {
 					won = true;
 				}
 			}
 		}
+		//tro choi tiep tuc
+		if (!won && !dead) {
+			if (hasStarted) {//dang choi
+				elapsedMS = (System.nanoTime() - startTime) / 1000000;//cap nhat thoi gian
+				formatedTime = formatTime(elapsedMS);//gan form cho thoi gian
+				play.playM();
+			} else {//tam dung
+				startTime = System.nanoTime();//thoi gian bat dau tu hien tai
+				play.stopMusic();
+			}
+			checkKeys();//kiem tra phim
+		} else {//thang or thua
+			setHighScore();//luu diem cao
+			// add
+			if (test == true) {//doi nhac
+				if (won)
+					play.resetAudioStream("D:\\ha\\ki2nam2\\JAVA\\BTL2\\lib\\victory.wav");
+				if (dead)
+					play.resetAudioStream("D:\\ha\\ki2nam2\\JAVA\\BTL2\\lib\\lose.wav");
+				test = false;
+			}
+			resetEnd();
+		}
 	}
-	
+
 	private String formatTime(long millis) {
 		String formatedTime;
-		
-		String hourFormat="";
-		int hours = (int)(millis/3600000);
-		if(hours>=1) {
-			millis -= hours*3600000;
-			if(hours<10) {
-				hourFormat = "0"+hours;
+
+		String hourFormat = "";
+		int hours = (int) (millis / 3600000);
+		if (hours >= 1) {
+			millis -= hours * 3600000;
+			if (hours < 10) {
+				hourFormat = "0" + hours;
+			} else {
+				hourFormat = "" + hours;
 			}
-			else {
-				hourFormat= ""+hours;
+		} else
+			hourFormat = "00";
+		hourFormat += ":";
+
+		String minuteFormat = "";
+		int minutes = (int) (millis / 60000);
+		if (minutes >= 1) {
+			millis -= minutes * 60000;
+			if (minutes < 10) {
+				minuteFormat = "0" + minutes;
+			} else {
+				minuteFormat = "" + minutes;
 			}
-		}else hourFormat = "00";
-		hourFormat+=":";
-		
-		String minuteFormat="";
-		int minutes = (int)(millis/60000);
-		if(minutes>=1) {
-			millis -= minutes*60000;
-			if(minutes<10) {
-				minuteFormat = "0"+minutes;
-			}
-			else {
-				minuteFormat= ""+minutes;
-			}
-		}
-		else minuteFormat="00";
+		} else
+			minuteFormat = "00";
 //		minuteFormat+=":";
-		
-		String secondFormat="";
-		int seconds = (int)(millis/1000);
-		if(seconds>=1) {
-			millis -= seconds*1000;
-			if(seconds<10) {
-				secondFormat = "0"+seconds;
+
+		String secondFormat = "";
+		int seconds = (int) (millis / 1000);
+		if (seconds >= 1) {
+			millis -= seconds * 1000;
+			if (seconds < 10) {
+				secondFormat = "0" + seconds;
+			} else {
+				secondFormat = "" + seconds;
 			}
-			else {
-				secondFormat= ""+seconds;
-			}
+		} else
+			secondFormat = "00";
+
+		String milliFormat;
+		if (millis > 99) {
+			milliFormat = "" + millis;
+		} else if (millis > 9) {
+			milliFormat = "0" + millis;
+		} else {
+			milliFormat = "00" + millis;
 		}
-		else secondFormat="00";
-//		secondFormat+=":";
-		
-		String milliFormat ;
-		if(millis>99) {
-			milliFormat=""+millis;
-		}else if(millis>9) {
-			milliFormat="0"+millis;
-		}else {
-			milliFormat="00"+millis;
-		}
-		
-		formatedTime= hourFormat+minuteFormat+":"+secondFormat+":"+milliFormat;
+
+		formatedTime = hourFormat + minuteFormat + ":" + secondFormat + ":" + milliFormat;
 		return formatedTime;
-		
+
 	}
-	
-	
-	
+
 	// dich chuyen vi tri
 	private void resetPosition(Tile current, int row, int col) {
 		if (current == null)// neu o nay rong thi out
 			return;
 		// truy cap vi tri cua o can den
-		int x = getTileX(col);
+		int x = getTileX(col); 
 		int y = getTileY(row);
 
 		// khoang cach giua o hien tai voi o can den
@@ -319,16 +334,15 @@ public class Gameboard {
 		// dich chuyen o
 		if (Math.abs(distX) < Tile.SLIDE_SPEED) {
 			current.setX(current.getX() - distX);
-		}
-
+		} 
 		if (Math.abs(distY) < Tile.SLIDE_SPEED) {
 			current.setY(current.getY() - distY);
 		}
-
+		//dịch chuyển trái
 		if (distX < 0) {
 			current.setX(current.getX() + Tile.SLIDE_SPEED);
 		}
-
+		//dịch chuyển lên 
 		if (distY < 0) {
 			current.setY(current.getY() + Tile.SLIDE_SPEED);
 		}
@@ -354,13 +368,13 @@ public class Gameboard {
 		int newRow = row;
 		while (move) {
 			newCol += horizontalDirection;// cot se truot theo chieu ngang
-			newRow += verticalDirection;
-			if (checkOutOfBounds(dir, newRow, newCol))// kiem tra truot den vi tri hop le chua
+			newRow += verticalDirection; //cot se truot theo chieu doc
+			if (checkOutOfBounds(dir, newRow, newCol))// kiem tra truot den vi tri hop le chua(den vach ngan chua)
 				break;
 			if (board[newRow][newCol] == null) {
 				board[newRow][newCol] = current;
-				board[newRow - verticalDirection][newCol - horizontalDirection] = null;
-				board[newRow][newCol].setSlideTo(new Point(newRow, newCol));
+				board[newRow - verticalDirection][newCol - horizontalDirection] = null;//xóa các ô đã trượt qua
+				board[newRow][newCol].setSlideTo(new Point(newRow, newCol)); //cho biết địa chỉ của ô đã trượt đến
 				canMove = true;
 			} else if (board[newRow][newCol].getValue() == current.getValue() && board[newRow][newCol].CanCombine()) {
 				board[newRow][newCol].setCanCombine(false);
@@ -368,7 +382,7 @@ public class Gameboard {
 				canMove = true;
 				board[newRow - verticalDirection][newCol - horizontalDirection] = null;
 				board[newRow][newCol].setSlideTo(new Point(newRow, newCol));
-				board[newRow][newCol].setCombineAnimation(true);
+				board[newRow][newCol].setCombineAnimation(true);//tạo hiệu ứng
 				// add to score
 				score += board[newRow][newCol].getValue();
 			} else {
@@ -378,7 +392,7 @@ public class Gameboard {
 
 		return canMove;
 	}
-
+	//kiểm tra xem ô có trượt đến vách ngăn chưa
 	private boolean checkOutOfBounds(Direction dir, int row, int col) {
 		if (dir == Direction.LEFT) {
 			return col < 0;
@@ -394,6 +408,7 @@ public class Gameboard {
 
 	// di chuyen o
 	private void moveTiles(Direction dir) {
+		if(!hasStarted) hasStarted= true;
 		boolean canMove = false;// bien co the di chuyen
 		int horizontalDirection = 0;// huong di chuyen theo chieu ngang
 		int verticalDirection = 0;// huong di chuyen theo chieu doc
@@ -414,6 +429,7 @@ public class Gameboard {
 				for (int col = COLS - 1; col >= 0; col--) {
 					if (!canMove) {
 						canMove = move(row, col, horizontalDirection, verticalDirection, dir);
+						//kiểm tra xem các ô có di chuyển được hay không
 					} else
 						move(row, col, horizontalDirection, verticalDirection, dir);
 				}
@@ -438,9 +454,8 @@ public class Gameboard {
 						move(row, col, horizontalDirection, verticalDirection, dir);
 				}
 			}
-		} else
-			System.out.println(dir + "is not valid direction");
-		// dich chuyen
+		}
+		// dich chuyen tạo hiệu ứng khi ngừng di chuyển
 		for (int row = 0; row < ROWS; row++) {
 			for (int col = 0; col < COLS; col++) {
 				Tile current = board[row][col];
@@ -457,11 +472,11 @@ public class Gameboard {
 		}
 
 	}
-
+	//kiểm tra xem đã chết chưa
 	private void checkDead() {
 		for (int row = 0; row < ROWS; row++) {
 			for (int col = 0; col < COLS; col++) {
-				if (board[row][col] == null)
+				if (board[row][col] == null)//nếu còn ô trông là chưa chế
 					return;
 				if (checkSurroundingTiles(row, col, board[row][col])) {
 					return;
@@ -469,13 +484,12 @@ public class Gameboard {
 			}
 		}
 		dead = true;
-		if(score>=highScore) {
-			highScore= score; 
-		}
-		 setHighScore();
-		
-	}
 
+		if (score >= highScore) { //gan gia tri highscore
+			highScore = score;
+		}
+	}
+	//kiểm tra xem các ô xung quanh có ô nào có thể kết hợp k
 	private boolean checkSurroundingTiles(int row, int col, Tile current) {
 		if (row > 0) {
 			Tile check = board[row - 1][col];
@@ -510,11 +524,57 @@ public class Gameboard {
 		}
 		return false;
 	}
+	//hàm kết thúc
+	protected void resetEnd() {
+		if (Keyboard.typed(KeyEvent.VK_N)) {
+			play.closeMusic();
+			reset();
+			if (!hasStarted)
+				hasStarted = true;
+		}
+		if (Keyboard.typed(KeyEvent.VK_MULTIPLY)) {
+			play.volumeMute();
+			if (!hasStarted)
+				hasStarted = true;
+		}
+	}
 
-	private void checkKeys() {
+	protected void checkKeys() {
+		resetEnd();
+		if (Keyboard.typed(KeyEvent.VK_M)) {
+			play.changeMusic();
+			if (!hasStarted)
+				hasStarted = true;
+		}
+		if (Keyboard.typed(KeyEvent.VK_P)) {
+			if (!hasStarted) {
+				hasStarted = true;
+			}
+			else {
+				hasStarted = false;
+			}
+		}
+
+		if (Keyboard.typed(KeyEvent.VK_ADD)) {
+			play.volumeUp();
+			if (!hasStarted)
+				hasStarted = true;
+		}
+		if (Keyboard.typed(KeyEvent.VK_SUBTRACT)) {
+			play.volumeDown();
+			if (!hasStarted)
+				hasStarted = true;
+		}
+		if (Keyboard.typed(KeyEvent.VK_MULTIPLY)) {
+			play.volumeMute();
+			if (!hasStarted)
+				hasStarted = true;
+		}
+
 		if (Keyboard.typed(KeyEvent.VK_LEFT)) {
 			// move tile left
 			moveTiles(Direction.LEFT);
+			
 			if (!hasStarted)
 				hasStarted = true;
 		}
@@ -541,4 +601,72 @@ public class Gameboard {
 		}
 	}
 
+	protected void renderEnd(Graphics2D g, int width, int height) {
+		AlphaComposite alphaComposite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f);
+
+		// Thiết lập AlphaComposite cho đối tượng Graphics
+		g.setComposite(alphaComposite);
+
+		// Tạo lớp phủ bằng cách vẽ hình chữ nhật với màu đen
+		g.setColor(new Color(250, 233, 187));
+		g.fillRect(0, 0, Game.WIDTH, Game.HEIGHT);
+
+		// Đặt lại AlphaComposite cho đối tượng Graphics
+		g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
+
+		String high = "";
+		g.setColor(Color.RED);
+		g.setFont(fontScore);
+		Font fontString = new Font("Bebas Neue Regular", Font.BOLD, 80);
+		//can giua
+		int x1= width/2-DrawUtils.getMessageWidth("You Win", fontString, g)/2;
+		if (won) {
+			g.drawString("You Win", x1,y);
+		}
+		if (dead) {
+			g.drawString("You Lose", x1,y);
+		}
+		fontString = fontString.deriveFont(45f);
+		g.setFont(fontScore);
+		if (score >= highScore) {
+			g.setFont(fontString);
+			high = "HIGHSCORE";
+			g.drawString(high, x1, y+100);
+		}
+		g.drawString("Score:" + score, x1, y+200);
+		g.drawString("nhấn phím N để bắt đầu lại", x1-50, y+300);
+		g.dispose();
+	}
+	public static int getCenterWidth(int WidthG,String message, Font font, Graphics2D g) {
+		return WidthG/2-DrawUtils.getMessageWidth(message, font, g);
+	}
+	public static int getCenterHeight(int HeightG,String message, Font font, Graphics2D g) {
+		return HeightG/2-DrawUtils.getMessageHeight(message, font, g)/2;
+	}
+	private void reset() {
+		test = true;
+		won = false;
+		dead = false;
+		score = 0;
+
+		startTime = System.nanoTime();
+		board = new Tile[ROWS][COLS];
+		gameBoard = new BufferedImage(BOARD_WIDTH, BOARD_HEIGHT, BufferedImage.TYPE_INT_RGB);
+		finalBoard = new BufferedImage(BOARD_WIDTH, BOARD_HEIGHT, BufferedImage.TYPE_INT_RGB);
+
+		loadHighScore();
+		creatBoardImage();
+		play.resetAudioStream("D:\\ha\\ki2nam2\\JAVA\\BTL2\\lib\\piano.wav");
+
+		spawnRandom();
+		spawnRandom();
+	}
+
+	protected boolean isHasStarted() {
+		return hasStarted;
+	}
+
+	protected void setHasStarted(boolean hasStarted) {
+		this.hasStarted = hasStarted;
+	}
 }

@@ -4,7 +4,7 @@ import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.font.TextLayout;
 import java.awt.geom.Rectangle2D;
-
+//class DrawUtils cho biết chiều dài và chiều rộng của 1 hình chữ nhật cần có để hiển thị messsage
 public class DrawUtils {
 	public DrawUtils() {
 
@@ -22,4 +22,5 @@ public class DrawUtils {
 		TextLayout textLayout = new TextLayout(message, font, g.getFontRenderContext());
 		return (int) textLayout.getBounds().getHeight();
 	}
+	
 }
